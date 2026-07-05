@@ -16,16 +16,15 @@ const CONFIG = {
   titleAccent: 'X',
   logoUrl:     'logo.jpg',
   edition:     'II EDIZIONE',
-  tagline:     'Il torneo misto che accende la passione per il Padel in città',
-  eyebrow:     'Benevento · Torneo di Padel Misto · 2026',
+  tagline:     'Il torneo amatoriale a coppie miste che porta la passione del padel nei rioni di Benevento. Nove gironi, ventisette coppie, un solo obiettivo.',
+  eyebrow:     'Benevento · Padel Amatoriale Misto · 2026',
   footerSub:   'II Edizione · Benevento 2026 · Padel Amatoriale Misto',
   footerCredit:'Fatto con passione per i rioni di Benevento',
   pageTitle:   'Mixto Padel Cup – II Edizione · Benevento Padel 2026',
 
   // ── SOCIAL ────────────────────────────────────────────────────────────────
   social: {
-    facebook:  'https://www.facebook.com/groups/400903518309647',
-    instagram: 'https://www.instagram.com/torneo_dei_rioni_padel_bn/',
+    instagram: 'https://www.instagram.com/mixto.padel.cup?igsh=MW95OWZpbDdhODY0',
   },
 
   // ── PALETTE ───────────────────────────────────────────────────────────────
