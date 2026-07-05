@@ -423,7 +423,7 @@ function keyToDate(key) {
 async function fetchSheet(sheetName) {
   const fields = 'sheets.data.rowData.values(userEnteredValue,formattedValue,userEnteredFormat.backgroundColor)';
   const url = 'https://sheets.googleapis.com/v4/spreadsheets/' + CONFIG.spreadsheetId
-    + '?ranges=' + encodeURIComponent(sheetName)
+    + '?ranges=' + encodeURIComponent("'" + sheetName + "'")
     + '&fields=' + encodeURIComponent(fields)
     + '&key=' + CONFIG.apiKey;
   const res = await fetch(url);
@@ -460,7 +460,7 @@ function parseMixCoppie(rows) {
   return gironi;
 }
 
-// ── PARSER FOGLIO "Mix2" (partite: intestazioni "GIRONE A" + righe Coppia1|Coppia2|Data|Orario|Campo|Risultato|Punti1|Punti2) ──
+// ── PARSER FOGLIO "Cale" (partite: intestazioni "GIRONE A" + righe Coppia1|Coppia2|Data|Orario|Campo|Risultato|Punti1|Punti2) ──
 function parseMix2(rows) {
   const val = (cells, i) => {
     const c = cells[i]; if (!c) return '';

@@ -9,7 +9,7 @@ const CONFIG = {
   spreadsheetId: '14aBgW2ReFiRQNOEPJFG2rgApzQL9QOQvrx0eVfsmuYc',
   apiKey:        'AIzaSyAdN7BX1xID-YDW2ZwAoivSbAPbqz_Tr50',
   mixSheet:      'Mix',   // foglio iscritti: intestazioni "GIRONE A" + righe "Nome1 / Nome2"
-  matchSheet:    'Mix2',  // foglio partite: intestazioni "GIRONE A" + righe Coppia1|Coppia2|Data|Orario|Campo|Risultato|Punti1|Punti2
+  matchSheet:    'Cale',  // foglio partite: intestazioni "GIRONE A" + righe Coppia1|Coppia2|Data|Orario|Campo|Risultato|Punti1|Punti2
 
   // ── IDENTITÀ ──────────────────────────────────────────────────────────────
   title:       'MIXTO PADEL CUP',
@@ -44,7 +44,7 @@ const CONFIG = {
     '--map-filter': 'grayscale(0.3) invert(0.9) hue-rotate(30deg)',
   },
 
-  // ── GIRONI (9 gironi, letti da un unico foglio "Mix2") ───────────────────
+  // ── GIRONI (9 gironi, letti da un unico foglio "Cale") ────────────────────
   gironi: [
     { name: 'A', label: 'GIRONE A', color: '#f5c842', cssVars: { '--g-dim': '#2b2306', '--g-mid': '#4d3f0d' } },
     { name: 'B', label: 'GIRONE B', color: '#e8402d', cssVars: { '--g-dim': '#2b0f0a', '--g-mid': '#4d1f16' } },
