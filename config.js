@@ -14,6 +14,7 @@ const CONFIG = {
   // ── IDENTITÀ ──────────────────────────────────────────────────────────────
   title:       'MIXTO PADEL CUP',
   titleAccent: 'X',
+  logoUrl:     'logo.jpg',
   edition:     'II EDIZIONE',
   tagline:     'Il torneo amatoriale a coppie miste che porta la passione del padel nei rioni di Benevento. Nove gironi, ventisette coppie, un solo obiettivo.',
   eyebrow:     'Benevento · Padel Amatoriale Misto · 2026',

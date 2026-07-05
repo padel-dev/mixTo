@@ -33,6 +33,7 @@
   .hero-eyebrow::before { content: ''; display: inline-block; width: 32px; height: 1px; background: var(--accent); }
   .hero h1 { font-family: var(--font-display); font-size: clamp(4.5rem, 14vw, 10rem); line-height: 0.88; letter-spacing: 2px; color: #fff; margin-bottom: 0.6rem; }
   .hero h1 .accent { color: var(--accent-light); }
+  .hero-logo { width: min(220px, 50vw); height: auto; border-radius: 50%; display: block; margin-bottom: 1.4rem; box-shadow: 0 0 0 1px var(--border), 0 20px 60px rgba(245,200,66,0.12); }
   .hero-edition { font-family: var(--font-display); font-size: clamp(1.4rem, 4vw, 2.4rem); letter-spacing: 6px; color: var(--muted); margin-bottom: 2rem; }
   .hero-tagline { font-size: 15px; color: var(--muted); max-width: 480px; line-height: 1.7; margin-bottom: 3rem; }
   .hero-stats { display: flex; gap: 2.5rem; flex-wrap: wrap; margin-bottom: 3rem; padding-top: 2rem; border-top: 1px solid var(--border); }
@@ -232,7 +233,7 @@
 <div class="hero" id="home">
   <div class="hero-inner">
     <div class="hero-eyebrow" id="hero-eyebrow"></div>
-    <h1 id="hero-title"></h1>
+    <img class="hero-logo" id="hero-logo" alt="">
     <div class="hero-edition" id="hero-edition"></div>
     <p class="hero-tagline" id="hero-tagline"></p>
     <div class="hero-stats">
@@ -358,7 +359,9 @@ function initFromConfig() {
   document.getElementById('page-title').textContent   = CONFIG.pageTitle;
   document.getElementById('hero-eyebrow').textContent = CONFIG.eyebrow;
   const titleLines = CONFIG.title.split(CONFIG.titleAccent);
-  document.getElementById('hero-title').innerHTML = titleLines[0] + '<span class="accent">' + CONFIG.titleAccent + '</span>' + (titleLines[1] || '');
+  const heroLogo = document.getElementById('hero-logo');
+  heroLogo.src = CONFIG.logoUrl;
+  heroLogo.alt = CONFIG.title;
   document.getElementById('hero-edition').textContent = CONFIG.edition;
   document.getElementById('hero-tagline').textContent = CONFIG.tagline;
   const social = document.getElementById('hero-social');
