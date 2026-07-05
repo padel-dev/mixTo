@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// CONFIG.JS — Mixto Padel Cup · I Edizione 2026
+// CONFIG.JS — Mixto Padel Cup · II Edizione 2026
 // Modifica solo questo file per personalizzare il sito.
 // ─────────────────────────────────────────────────────────────────────────────
 

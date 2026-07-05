@@ -844,8 +844,8 @@ function buildSquadre(gironi) {
   let totCoppie = 0;
   gironi.forEach(({ cfg, coppie }) => {
     totCoppie += coppie.length;
-    const rowsHTML = coppie.map((c, i) =>
-      '<div class="coppia-row"><span class="coppia-num" style="color:' + cfg.color + '">' + (i+1) + '</span><span class="coppia-names">' + c.n1 + (c.n2 ? '<span class="sep">/</span>' + c.n2 : '') + '</span></div>'
+    const rowsHTML = coppie.map((c) =>
+      '<div class="coppia-row"><span class="coppia-names">' + c.n1 + (c.n2 ? '<span class="sep">/</span>' + c.n2 : '') + '</span></div>'
     ).join('');
     const card = document.createElement('div');
     card.className = 'squadra-card';
