@@ -87,11 +87,71 @@ async function fetchSheet(sheetName) {
   return json.sheets[0].data[0].rowData || [];
 }
 
+async function fetchStructure() {
+  const fields = 'sheets.properties,namedRanges';
+  const url = 'https://sheets.googleapis.com/v4/spreadsheets/' + CONFIG.spreadsheetId
+    + '?fields=' + encodeURIComponent(fields)
+    + '&key=' + CONFIG.apiKey;
+  const res = await fetch(url);
+  const text = await res.text();
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' · ' + text);
+  return JSON.parse(text);
+}
+
+function renderStructure(json) {
+  const out = document.getElementById('out');
+  const h2 = document.createElement('h2');
+  h2.textContent = 'STEP 1 · Struttura reale dello spreadsheet';
+  out.appendChild(h2);
+
+  const t1 = document.createElement('table');
+  t1.innerHTML = '<tr><th>Sheet ID</th><th>Nome scheda (tab)</th><th>Righe</th><th>Colonne</th></tr>' +
+    (json.sheets || []).map(s => {
+      const p = s.properties;
+      const gp = p.gridProperties || {};
+      const match = (p.title === CONFIG.matchSheet) ? ' ✅ combacia con CONFIG.matchSheet' : '';
+      return '<tr><td>' + p.sheetId + '</td><td>' + p.title + match + '</td><td>' + (gp.rowCount||'?') + '</td><td>' + (gp.columnCount||'?') + '</td></tr>';
+    }).join('');
+  out.appendChild(t1);
+
+  const h2b = document.createElement('h2');
+  h2b.textContent = 'Named ranges definiti nello spreadsheet';
+  out.appendChild(h2b);
+
+  const nr = json.namedRanges || [];
+  if (nr.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'note';
+    p.textContent = 'Nessun named range trovato.';
+    out.appendChild(p);
+  } else {
+    const t2 = document.createElement('table');
+    t2.innerHTML = '<tr><th>Nome</th><th>Sheet ID collegato</th><th>Range (0-indexed)</th></tr>' +
+      nr.map(n => {
+        const r = n.range || {};
+        const isSuspect = (n.name === CONFIG.matchSheet) ? ' bad' : '';
+        return '<tr class="' + isSuspect.trim() + '"><td>' + n.name + (isSuspect?' ⚠️ stesso nome di CONFIG.matchSheet':'') + '</td><td>' + r.sheetId + '</td><td>righe ' + r.startRowIndex + '-' + r.endRowIndex + ' · col ' + r.startColumnIndex + '-' + r.endColumnIndex + '</td></tr>';
+      }).join('');
+    out.appendChild(t2);
+  }
+}
+
 async function run() {
   const statusEl = document.getElementById('status');
   const out = document.getElementById('out');
   out.innerHTML = '';
   statusEl.className = '';
+  statusEl.textContent = 'Caricamento struttura spreadsheet...';
+
+  try {
+    const structJson = await fetchStructure();
+    renderStructure(structJson);
+  } catch (err) {
+    statusEl.className = 'err';
+    statusEl.textContent = 'ERRORE nel leggere la struttura: ' + err.message;
+    return;
+  }
+
   statusEl.textContent = 'Caricamento foglio "' + CONFIG.matchSheet + '"...';
 
   let rows;
@@ -99,10 +159,14 @@ async function run() {
     rows = await fetchSheet(CONFIG.matchSheet);
   } catch (err) {
     statusEl.className = 'err';
-    statusEl.textContent = 'ERRORE nel fetch: ' + err.message;
+    statusEl.textContent = 'ERRORE nel fetch dati: ' + err.message + ' — guarda la STEP 1 sopra per capire a cosa punta davvero "' + CONFIG.matchSheet + '".';
     return;
   }
   statusEl.textContent = 'OK · ' + rows.length + ' righe grezze ricevute dal foglio "' + CONFIG.matchSheet + '"';
+
+  const h2step2 = document.createElement('h2');
+  h2step2.textContent = 'STEP 2 · Parsing partite (Data / Orario / Campo)';
+  out.appendChild(h2step2);
 
   let currentLetter = null;
   let table = null;
