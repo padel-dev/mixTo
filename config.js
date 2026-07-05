@@ -14,12 +14,12 @@ const CONFIG = {
   // ── IDENTITÀ ──────────────────────────────────────────────────────────────
   title:       'MIXTO PADEL CUP',
   titleAccent: 'X',
-  edition:     'I EDIZIONE',
+  edition:     'II EDIZIONE',
   tagline:     'Il torneo amatoriale a coppie miste che porta la passione del padel nei rioni di Benevento. Nove gironi, ventisette coppie, un solo obiettivo.',
   eyebrow:     'Benevento · Padel Amatoriale Misto · 2026',
-  footerSub:   'I Edizione · Benevento 2026 · Padel Amatoriale Misto',
+  footerSub:   'II Edizione · Benevento 2026 · Padel Amatoriale Misto',
   footerCredit:'Fatto con passione per i rioni di Benevento',
-  pageTitle:   'Mixto Padel Cup – I Edizione · Benevento Padel 2026',
+  pageTitle:   'Mixto Padel Cup – II Edizione · Benevento Padel 2026',
 
   // ── SOCIAL ────────────────────────────────────────────────────────────────
   social: {
@@ -66,7 +66,8 @@ const CONFIG = {
 
   // ── STORICO EDIZIONI ──────────────────────────────────────────────────────
   storia: [
-    { edition: 'I Edizione · 2026', winner: 'In corso', current: true },
+    { edition: 'I Edizione · 2026', winner: 'Assunta Pepe / Antonio Cavuoto', current: false },
+    { edition: 'II Edizione · 2026', winner: 'In corso', current: true },
   ],
 
   // ── VENUE ─────────────────────────────────────────────────────────────────
