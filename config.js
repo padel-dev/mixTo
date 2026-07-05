@@ -16,7 +16,7 @@ const CONFIG = {
   titleAccent: 'X',
   logoUrl:     'logo.jpg',
   edition:     'II EDIZIONE',
-  tagline:     'Il torneo misto che accende la passione per il Padel in citta'',
+  tagline:     'Il torneo misto che accende la passione per il Padel in città',
   eyebrow:     'Benevento · Torneo di Padel Misto · 2026',
   footerSub:   'II Edizione · Benevento 2026 · Padel Amatoriale Misto',
   footerCredit:'Fatto con passione per i rioni di Benevento',
