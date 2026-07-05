@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>DEBUG · Mixto Padel Cup</title>
+<style>
+  body { background:#0a0a08; color:#f0eee2; font-family: monospace; font-size:13px; padding:2rem; }
+  h1 { color:#f5c842; font-size:1.4rem; margin-bottom:0.3rem; }
+  h2 { color:#f5c842; font-size:1rem; margin:2rem 0 0.6rem; border-bottom:1px solid #2b2a1e; padding-bottom:6px;}
+  .note { color:#7a7862; margin-bottom:1.5rem; }
+  table { border-collapse: collapse; width:100%; margin-bottom:1.5rem; }
+  th, td { border:1px solid #2b2a1e; padding:6px 8px; text-align:left; vertical-align:top; }
+  th { background:#17160f; color:#f5c842; font-size:11px; text-transform:uppercase; letter-spacing:1px; }
+  td { font-size:12px; }
+  .ok   { color:#3fd97a; }
+  .bad  { background:rgba(232,64,45,0.15); color:#f0705a; font-weight:bold; }
+  .raw  { color:#7a7862; font-size:11px; white-space:pre-wrap; word-break:break-all; }
+  .girone-hdr td { background:#2b2306; color:#f5c842; font-weight:bold; }
+  #status { padding:10px; border:1px solid #2b2a1e; margin-bottom:1rem; }
+  #status.err { border-color:#e8402d; color:#f0705a; }
+  button { background:#2b2306; color:#f5c842; border:1px solid #4d3f0d; padding:8px 16px; cursor:pointer; font-family:monospace; }
+</style>
+</head>
+<body>
+<h1>DEBUG · Parsing Data / Orario / Campo (foglio Mix2)</h1>
+<p class="note">Mostra per ogni partita il dato grezzo restituito da Google Sheets e cosa ne estrae il parser attuale. Le righe evidenziate in rosso sono quelle dove il campo risulta vuoto nonostante la coppia sia presente.</p>
+<button onclick="run()">Ricarica</button>
+<div id="status"></div>
+<div id="out"></div>
+
+<script src="config.js"></script>
+<script>
+const GironeHeaderRegex = /^GIRONE\s+([A-Z0-9]+)/i;
+const MESI = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+
+function serialToDateStr(n) {
+  const d = new Date(1899, 11, 30);
+  d.setDate(d.getDate() + Math.floor(n));
+  return d.getDate() + '/' + (d.getMonth() + 1) + '/' + String(d.getFullYear()).slice(2);
+}
+
+// Stesse funzioni usate in produzione (copiate identiche da index.html)
+function val(cells, i) {
+  const c = cells[i]; if (!c) return '';
+  const fmt = (c.formattedValue || '').trim();
+  const v = c.userEnteredValue;
+  if (!v) return fmt;
+  if (v.numberValue !== undefined && v.stringValue === undefined) return serialToDateStr(v.numberValue);
+  return (v.stringValue != null ? v.stringValue : (v.numberValue != null ? v.numberValue.toString() : '')).trim() || fmt;
+}
+function strVal(cells, i) {
+  const c = cells[i]; if (!c) return '';
+  const v = c.userEnteredValue;
+  if (!v) return (c.formattedValue || '').trim();
+  return (v.stringValue || c.formattedValue || '').trim();
+}
+function numVal(cells, i) {
+  const c = cells[i]; if (!c) return '';
+  const v = c.userEnteredValue;
+  if (!v) return (c.formattedValue || '').trim();
+  if (v.numberValue !== undefined) return String(Math.round(v.numberValue));
+  return (v.stringValue || '').trim();
+}
+
+function rawDump(cells, i) {
+  const c = cells[i];
+  if (!c) return '(cella vuota / assente)';
+  return JSON.stringify({
+    userEnteredValue: c.userEnteredValue || null,
+    formattedValue: c.formattedValue || null
+  }, null, 0);
+}
+
+async function fetchSheet(sheetName) {
+  const fields = 'sheets.data.rowData.values(userEnteredValue,formattedValue,userEnteredFormat.backgroundColor)';
+  const url = 'https://sheets.googleapis.com/v4/spreadsheets/' + CONFIG.spreadsheetId
+    + '?ranges=' + encodeURIComponent(sheetName)
+    + '&fields=' + encodeURIComponent(fields)
+    + '&key=' + CONFIG.apiKey;
+  const res = await fetch(url);
+  const text = await res.text();
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' · ' + sheetName + ' · ' + text);
+  const json = JSON.parse(text);
+  if (!json.sheets || !json.sheets[0] || !json.sheets[0].data || !json.sheets[0].data[0]) {
+    throw new Error('Risposta inattesa dalla API, controlla nome foglio "' + sheetName + '": ' + text);
+  }
+  return json.sheets[0].data[0].rowData || [];
+}
+
+async function fetchStructure() {
+  const fields = 'sheets.properties,namedRanges';
+  const url = 'https://sheets.googleapis.com/v4/spreadsheets/' + CONFIG.spreadsheetId
+    + '?fields=' + encodeURIComponent(fields)
+    + '&key=' + CONFIG.apiKey;
+  const res = await fetch(url);
+  const text = await res.text();
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' · ' + text);
+  return JSON.parse(text);
+}
+
+function renderStructure(json) {
+  const out = document.getElementById('out');
+  const h2 = document.createElement('h2');
+  h2.textContent = 'STEP 1 · Struttura reale dello spreadsheet';
+  out.appendChild(h2);
+
+  const t1 = document.createElement('table');
+  t1.innerHTML = '<tr><th>Sheet ID</th><th>Nome scheda (tab)</th><th>Righe</th><th>Colonne</th></tr>' +
+    (json.sheets || []).map(s => {
+      const p = s.properties;
+      const gp = p.gridProperties || {};
+      const match = (p.title === CONFIG.matchSheet) ? ' ✅ combacia con CONFIG.matchSheet' : '';
+      return '<tr><td>' + p.sheetId + '</td><td>' + p.title + match + '</td><td>' + (gp.rowCount||'?') + '</td><td>' + (gp.columnCount||'?') + '</td></tr>';
+    }).join('');
+  out.appendChild(t1);
+
+  const h2b = document.createElement('h2');
+  h2b.textContent = 'Named ranges definiti nello spreadsheet';
+  out.appendChild(h2b);
+
+  const nr = json.namedRanges || [];
+  if (nr.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'note';
+    p.textContent = 'Nessun named range trovato.';
+    out.appendChild(p);
+  } else {
+    const t2 = document.createElement('table');
+    t2.innerHTML = '<tr><th>Nome</th><th>Sheet ID collegato</th><th>Range (0-indexed)</th></tr>' +
+      nr.map(n => {
+        const r = n.range || {};
+        const isSuspect = (n.name === CONFIG.matchSheet) ? ' bad' : '';
+        return '<tr class="' + isSuspect.trim() + '"><td>' + n.name + (isSuspect?' ⚠️ stesso nome di CONFIG.matchSheet':'') + '</td><td>' + r.sheetId + '</td><td>righe ' + r.startRowIndex + '-' + r.endRowIndex + ' · col ' + r.startColumnIndex + '-' + r.endColumnIndex + '</td></tr>';
+      }).join('');
+    out.appendChild(t2);
+  }
+}
+
+async function run() {
+  const statusEl = document.getElementById('status');
+  const out = document.getElementById('out');
+  out.innerHTML = '';
+  statusEl.className = '';
+  statusEl.textContent = 'Caricamento struttura spreadsheet...';
+
+  try {
+    const structJson = await fetchStructure();
+    renderStructure(structJson);
+  } catch (err) {
+    statusEl.className = 'err';
+    statusEl.textContent = 'ERRORE nel leggere la struttura: ' + err.message;
+    return;
+  }
+
+  statusEl.textContent = 'Caricamento foglio "' + CONFIG.matchSheet + '"...';
+
+  let rows;
+  try {
+    rows = await fetchSheet(CONFIG.matchSheet);
+  } catch (err) {
+    statusEl.className = 'err';
+    statusEl.textContent = 'ERRORE nel fetch dati: ' + err.message + ' — guarda la STEP 1 sopra per capire a cosa punta davvero "' + CONFIG.matchSheet + '".';
+    return;
+  }
+  statusEl.textContent = 'OK · ' + rows.length + ' righe grezze ricevute dal foglio "' + CONFIG.matchSheet + '"';
+
+  const h2step2 = document.createElement('h2');
+  h2step2.textContent = 'STEP 2 · Parsing partite (Data / Orario / Campo)';
+  out.appendChild(h2step2);
+
+  let currentLetter = null;
+  let table = null;
+  let countRows = 0, countBad = 0;
+
+  rows.forEach((r, rowIndex) => {
+    const cells = r.values || [];
+    const a = val(cells, 0);
+    if (!a) return;
+
+    const m = a.match(GironeHeaderRegex);
+    if (m) {
+      currentLetter = m[1].toUpperCase();
+      const h2 = document.createElement('h2');
+      h2.textContent = 'GIRONE ' + currentLetter + '  (riga foglio #' + (rowIndex+1) + ')';
+      out.appendChild(h2);
+      table = document.createElement('table');
+      table.innerHTML = '<tr><th>Riga</th><th>Sq1</th><th>Sq2</th>'
+        + '<th>Data → parsed</th><th>Data → raw</th>'
+        + '<th>Orario → parsed</th><th>Orario → raw</th>'
+        + '<th>Campo → parsed</th><th>Campo → raw</th>'
+        + '<th>Risultato</th></tr>';
+      out.appendChild(table);
+      return;
+    }
+
+    if (!currentLetter || !table) return;
+    const sq2 = val(cells, 1);
+    if (!sq2) return;
+
+    countRows++;
+    const dataP   = val(cells, 2);
+    const orarioP = strVal(cells, 3);
+    const campoP  = val(cells, 4);
+    const risP    = strVal(cells, 5);
+
+    const isBad = !dataP || !orarioP || !campoP;
+    if (isBad) countBad++;
+
+    const tr = document.createElement('tr');
+    if (isBad) tr.classList.add('bad');
+    tr.innerHTML =
+      '<td>' + (rowIndex+1) + '</td>' +
+      '<td>' + a + '</td>' +
+      '<td>' + sq2 + '</td>' +
+      '<td class="' + (dataP ? 'ok' : 'bad') + '">' + (dataP || '(VUOTO)') + '</td>' +
+      '<td class="raw">' + rawDump(cells, 2) + '</td>' +
+      '<td class="' + (orarioP ? 'ok' : 'bad') + '">' + (orarioP || '(VUOTO)') + '</td>' +
+      '<td class="raw">' + rawDump(cells, 3) + '</td>' +
+      '<td class="' + (campoP ? 'ok' : 'bad') + '">' + (campoP || '(VUOTO)') + '</td>' +
+      '<td class="raw">' + rawDump(cells, 4) + '</td>' +
+      '<td>' + (risP || '—') + '</td>';
+    table.appendChild(tr);
+  });
+
+  statusEl.textContent += ' · ' + countRows + ' partite analizzate · ' + countBad + ' con almeno un campo (Data/Orario/Campo) vuoto';
+  if (countBad > 0) statusEl.className = 'err';
+}
+
+run();
+</script>
+</body>
+</html>
