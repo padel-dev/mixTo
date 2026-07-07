@@ -619,6 +619,12 @@ function orarioToMinuti(orario) {
   if (!m) return Infinity;
   return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
 }
+
+function campoOrdine(campo) {
+  if (campo === 'ROSSO') return 2;
+  if (campo === 'BLU' || campo === 'BLUE') return 1;
+  return 0; // Verde (default)
+}
  
 function renderDayBlock(key, tipo) {
   const giorno = calGiorniMap.get(key);
@@ -646,7 +652,7 @@ function renderDayBlock(key, tipo) {
 
   letters.forEach(letter => {
     const gruppo = giorno.gironiByName.get(letter); if (!gruppo) return;
-    gruppo.partite.sort((a, b) => orarioToMinuti(a.orario) - orarioToMinuti(b.orario));
+    gruppo.partite.sort((a, b) => campoOrdine(a.campo) - campoOrdine(b.campo) || orarioToMinuti(a.orario) - orarioToMinuti(b.orario));
     const cfg = gruppo.cfg;
     const gGroup = document.createElement('div');
     gGroup.className = 'girone-group';
