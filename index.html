@@ -613,6 +613,13 @@ function buildGiorniMap() {
   });
 }
 
+function orarioToMinuti(orario) {
+  if (!orario) return Infinity; // partite senza orario vanno in fondo
+  const m = orario.match(/(\d{1,2})[:.](\d{2})/);
+  if (!m) return Infinity;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+}
+ 
 function renderDayBlock(key, tipo) {
   const giorno = calGiorniMap.get(key);
   const info   = giorno.info;
@@ -639,6 +646,7 @@ function renderDayBlock(key, tipo) {
 
   letters.forEach(letter => {
     const gruppo = giorno.gironiByName.get(letter); if (!gruppo) return;
+    gruppo.partite.sort((a, b) => orarioToMinuti(a.orario) - orarioToMinuti(b.orario));
     const cfg = gruppo.cfg;
     const gGroup = document.createElement('div');
     gGroup.className = 'girone-group';
