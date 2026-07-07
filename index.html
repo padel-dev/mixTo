@@ -653,6 +653,7 @@ function renderDayBlock(key, tipo) {
   letters.forEach(letter => {
     const gruppo = giorno.gironiByName.get(letter); if (!gruppo) return;
     gruppo.partite.sort((a, b) => campoOrdine(a.campo) - campoOrdine(b.campo) || orarioToMinuti(a.orario) - orarioToMinuti(b.orario));
+    console.log(letter, gruppo.partite.map(p => ({sq1:p.sq1, orario:p.orario, campo:p.campo})));
     const cfg = gruppo.cfg;
     const gGroup = document.createElement('div');
     gGroup.className = 'girone-group';
