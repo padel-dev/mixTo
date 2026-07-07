@@ -643,17 +643,18 @@ function renderDayBlock(key, tipo) {
   }
   block.appendChild(header);
 
-  // ordina i gironi presenti quel giorno secondo l'ordine di CONFIG.gironi
-  const letters = [...giorno.gironiByName.keys()].sort((a,b) => {
-    const ia = CONFIG.gironi.findIndex(g => g.name === a);
-    const ib = CONFIG.gironi.findIndex(g => g.name === b);
-    return ia - ib;
+  // ordina prima le partite di ciascun girone per campo+orario
+  giorno.gironiByName.forEach(gruppo => {
+    gruppo.partite.sort((a, b) => campoOrdine(a.campo) - campoOrdine(b.campo) || orarioToMinuti(a.orario) - orarioToMinuti(b.orario));
   });
-
+  // ordina i gironi presenti quel giorno per campo+orario della prima partita
+  const letters = [...giorno.gironiByName.keys()].sort((a, b) => {
+    const pa = giorno.gironiByName.get(a).partite[0];
+    const pb = giorno.gironiByName.get(b).partite[0];
+    return campoOrdine(pa.campo) - campoOrdine(pb.campo) || orarioToMinuti(pa.orario) - orarioToMinuti(pb.orario);
+  });
   letters.forEach(letter => {
     const gruppo = giorno.gironiByName.get(letter); if (!gruppo) return;
-    gruppo.partite.sort((a, b) => campoOrdine(a.campo) - campoOrdine(b.campo) || orarioToMinuti(a.orario) - orarioToMinuti(b.orario));
-    console.log(letter, gruppo.partite.map(p => ({sq1:p.sq1, orario:p.orario, campo:p.campo})));
     const cfg = gruppo.cfg;
     const gGroup = document.createElement('div');
     gGroup.className = 'girone-group';
