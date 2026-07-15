@@ -10,6 +10,7 @@ const CONFIG = {
   apiKey:        'AIzaSyAdN7BX1xID-YDW2ZwAoivSbAPbqz_Tr50',
   mixSheet:      'Mix',   // foglio iscritti: intestazioni "GIRONE A" + righe "Nome1 / Nome2"
   matchSheet:    'Cale',  // foglio partite: intestazioni "GIRONE A" + righe Coppia1|Coppia2|Data|Orario|Campo|Risultato|Punti1|Punti2
+  goldSheet:     'Gold',  // foglio tabellone Gold: seed 1-16 + tabellone a eliminazione diretta
 
   // ── IDENTITÀ ──────────────────────────────────────────────────────────────
   title:       'MIXTO PADEL CUP',

@@ -200,6 +200,55 @@
   footer .foot-logo { font-family: var(--font-display); font-size: 2rem; letter-spacing: 6px; color: #2b2510; margin-bottom: 1rem; }
   .fade-in { opacity: 0; transform: translateY(16px); transition: opacity 0.5s ease, transform 0.5s ease; }
   .fade-in.visible { opacity: 1; transform: none; }
+
+  /* ── TABELLONE GOLD ── */
+  .gold-wrap { overflow-x: auto; padding-bottom: 1rem; }
+  .bracket { display: flex; gap: 46px; min-width: 900px; padding: 10px 4px; }
+  .bracket-round { display: flex; flex-direction: column; justify-content: space-around; flex: 1; min-width: 190px; }
+  .bracket-round-title { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); text-align: center; margin-bottom: 14px; }
+  .bracket-slot { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  .bracket-match { background: var(--card); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; position: relative; z-index: 2; margin: 8px 0; }
+  .bracket-match.placeholder { opacity: 0.5; border-style: dashed; }
+  .bracket-match.winner-final { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-mid); }
+  .bracket-team { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; font-size: 12px; border-bottom: 1px solid var(--border); }
+  .bracket-team:last-child { border-bottom: none; }
+  .bracket-team.win { color: var(--accent-light); font-weight: 600; background: rgba(245,200,66,0.06); }
+  .bracket-team-name { flex: 1; color: #fff; line-height: 1.3; }
+  .bracket-team.placeholder-name .bracket-team-name { color: var(--muted); font-style: italic; }
+  .bracket-team-score { font-family: var(--font-display); font-size: 1rem; color: var(--accent-light); flex-shrink: 0; }
+  .bracket-meta { display: flex; gap: 8px; flex-wrap: wrap; padding: 5px 10px; font-size: 9.5px; letter-spacing: 1px; color: var(--muted); background: var(--bg2); border-top: 1px solid var(--border); }
+  .bracket-meta .bm-campo-r { color: #f0705a; }
+  .bracket-meta .bm-campo-b { color: #7fcdf0; }
+  .bracket-meta .bm-campo-g { color: #6df0a0; }
+  /* connettori a "parentesi" tra un turno e il successivo */
+  .bracket-round:not(:last-child) .bracket-slot::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: -23px;
+    width: 23px;
+    height: 1px;
+    background: var(--border);
+    z-index: 1;
+  }
+  .bracket-pair { position: relative; }
+  .bracket-pair::before {
+    content: '';
+    position: absolute;
+    top: 25%;
+    bottom: 25%;
+    left: -23px;
+    width: 1px;
+    background: var(--border);
+  }
+  .bracket-champion { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-width: 170px; }
+  .bracket-trophy { font-size: 2.6rem; }
+  .bracket-champion-name { font-family: var(--font-display); font-size: 1.1rem; letter-spacing: 2px; text-align: center; color: var(--accent-light); }
+  .bracket-champion-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+  .gold-legend { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 1.6rem; font-size: 11px; color: var(--muted); letter-spacing: 0.5px; }
+  .gold-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .gold-legend .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
   @media (max-width: 640px) {
     .hero { min-height: 70vh; padding: 4rem 1.2rem 3rem; }
     .hero h1 { font-size: 4.5rem; }
@@ -257,6 +306,7 @@
   <div class="nav-links">
     <a href="#calendario" onclick="setActive(this)">Calendario</a>
     <a href="#classifiche" onclick="setActive(this)">Classifiche</a>
+    <a href="#tabellone-gold" onclick="setActive(this)">Tabellone Gold</a>
     <a href="#squadre" onclick="setActive(this)">Coppie</a>
     <a href="#storia" onclick="setActive(this)">Storico</a>
     <a href="#dove" onclick="setActive(this)">Dove giochiamo</a>
@@ -289,6 +339,19 @@
       <div class="sec-sub" id="cl-sub">Caricamento...</div>
     </div>
     <div id="classifiche-container">
+      <div class="loading-msg">Caricamento<span class="loading-dot">.</span><span class="loading-dot">.</span><span class="loading-dot">.</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="section" id="tabellone-gold">
+  <div class="section-inner">
+    <div class="sec-head fade-in">
+      <div class="sec-label" id="gold-label">Fase finale</div>
+      <div class="sec-title">TABELLONE GOLD</div>
+      <div class="sec-sub" id="gold-sub">Caricamento tabellone...</div>
+    </div>
+    <div id="gold-container">
       <div class="loading-msg">Caricamento<span class="loading-dot">.</span><span class="loading-dot">.</span><span class="loading-dot">.</span></div>
     </div>
   </div>
@@ -927,6 +990,236 @@ function filterSquadre(q) {
   });
 }
 
+// ── PARSER FOGLIO "Gold" (tabellone a eliminazione diretta, 16 coppie) ──────
+function parseGold(rows) {
+  const cellRaw = (cells, i) => {
+    const c = cells[i]; if (!c) return '';
+    const v = c.userEnteredValue;
+    if (v) {
+      if (v.stringValue != null) return v.stringValue.trim();
+      if (v.numberValue != null) return v.numberValue;
+    }
+    return (c.formattedValue || '').trim();
+  };
+  const dateVal = (cells, i) => {
+    const c = cells[i]; if (!c) return '';
+    const v = c.userEnteredValue;
+    if (v && v.numberValue !== undefined && v.stringValue === undefined) return serialToDateStr(v.numberValue);
+    if (v && v.stringValue != null) return v.stringValue.trim();
+    return (c.formattedValue || '').trim();
+  };
+  const strVal = (cells, i) => {
+    const c = cells[i]; if (!c) return '';
+    const v = c.userEnteredValue;
+    if (v && v.stringValue != null) return v.stringValue.trim();
+    return (c.formattedValue || '').trim();
+  };
+
+  const seeds = [];      // { n, nome }
+  const matchRows = [];  // sequenza di match / null (riga vuota = separatore di turno)
+
+  rows.forEach(r => {
+    const cells = r.values || [];
+    const c0 = cellRaw(cells, 0);
+    const c1 = strVal(cells, 1);
+    const c2 = strVal(cells, 2);
+    const isBlank = !c0 && !c1 && !c2;
+    if (isBlank) { matchRows.push(null); return; }
+    if (c1 && !c2) {
+      // riga seed: numero + nome coppia
+      const n = typeof c0 === 'number' ? c0 : parseInt(c0);
+      seeds.push({ n: isNaN(n) ? seeds.length + 1 : n, nome: c1 });
+      return;
+    }
+    if (c1 && c2) {
+      matchRows.push({
+        label:     typeof c0 === 'string' ? c0.trim() : String(c0 || ''),
+        sq1: c1, sq2: c2,
+        data:      dateVal(cells, 3),
+        orario:    strVal(cells, 4),
+        campo:     strVal(cells, 5).toUpperCase(),
+        risultato: strVal(cells, 6),
+        p1:        strVal(cells, 7),
+        p2:        strVal(cells, 8),
+      });
+    }
+  });
+
+  // raggruppa in blocchi (un blocco = un turno) separati da righe vuote
+  const blocks = [];
+  let current = [];
+  matchRows.forEach(m => {
+    if (m === null) { if (current.length) { blocks.push(current); current = []; } }
+    else current.push(m);
+  });
+  if (current.length) blocks.push(current);
+
+  return { seeds: seeds.sort((a, b) => a.n - b.n), blocks };
+}
+
+function goldWinner(m) {
+  if (!m || m.p1 === '' || m.p2 === '' || m.p1 == null || m.p2 == null) return null;
+  const s1 = parseInt(m.p1) || 0, s2 = parseInt(m.p2) || 0;
+  if (s1 === s2) return null;
+  return s1 > s2 ? m.sq1 : m.sq2;
+}
+
+function goldPlaceholderLabel(m) {
+  if (m && m.label && /\d+\s*-{1,2}\s*\d+/.test(m.label)) {
+    return 'Vinc. (' + m.label.replace(/\s*-{1,2}\s*/, '/') + ')';
+  }
+  return 'Vincente turno prec.';
+}
+
+function buildGoldRounds(parsed) {
+  const nSeeds = parsed.seeds.length || 16;
+  const totalRounds = Math.max(1, Math.round(Math.log2(nSeeds)));
+  const roundNamesAll = ['SEDICESIMI', 'OTTAVI DI FINALE', 'QUARTI DI FINALE', 'SEMIFINALE', 'FINALE'];
+  const names = [];
+  for (let i = 0; i < totalRounds; i++) {
+    names.push(roundNamesAll[roundNamesAll.length - totalRounds + i] || ('TURNO ' + (i + 1)));
+  }
+
+  const rounds = [];
+  for (let i = 0; i < totalRounds; i++) {
+    const real = parsed.blocks[i];
+    if (real && real.length) {
+      rounds.push({ name: names[i], matches: real });
+    } else if (i === 0) {
+      rounds.push({ name: names[i], matches: [] });
+    } else {
+      const prev = rounds[i - 1].matches;
+      const synth = [];
+      for (let j = 0; j < prev.length; j += 2) {
+        const a = prev[j], b = prev[j + 1];
+        const wa = a ? goldWinner(a) : null;
+        const wb = b ? goldWinner(b) : null;
+        synth.push({
+          label: '',
+          sq1: wa || (a ? goldPlaceholderLabel(a) : 'Da definire'),
+          sq2: wb || (b ? goldPlaceholderLabel(b) : 'Da definire'),
+          data: '', orario: '', campo: '', risultato: '', p1: '', p2: '',
+          isPlaceholder: !(wa && wb),
+        });
+      }
+      rounds.push({ name: names[i], matches: synth });
+    }
+  }
+  return rounds;
+}
+
+function campoInfo(campo) {
+  if (campo === 'ROSSO') return { cls: 'bm-campo-r', label: 'Campo Rosso' };
+  if (campo === 'BLU' || campo === 'BLUE') return { cls: 'bm-campo-b', label: 'Campo Blu' };
+  if (!campo) return null;
+  return { cls: 'bm-campo-g', label: 'Campo Verde' };
+}
+
+function renderGoldMatch(m) {
+  const hasResult = m.p1 !== '' && m.p2 !== '' && m.p1 != null && m.p2 != null;
+  const w = hasResult ? goldWinner(m) : null;
+  const box = document.createElement('div');
+  box.className = 'bracket-match' + (m.isPlaceholder ? ' placeholder' : '');
+
+  const rowHtml = (name, score, isWinner) =>
+    '<div class="bracket-team' + (isWinner ? ' win' : '') + (!name || /^Vinc\.|^Vincente|^Da definire/.test(name) ? ' placeholder-name' : '') + '">' +
+      '<span class="bracket-team-name">' + (name || 'Da definire') + '</span>' +
+      (score !== null ? '<span class="bracket-team-score">' + score + '</span>' : '') +
+    '</div>';
+
+  box.innerHTML = rowHtml(m.sq1, hasResult ? m.p1 : null, hasResult && w === m.sq1)
+                 + rowHtml(m.sq2, hasResult ? m.p2 : null, hasResult && w === m.sq2);
+
+  const ci = campoInfo(m.campo);
+  if (m.data || m.orario || ci) {
+    const meta = document.createElement('div');
+    meta.className = 'bracket-meta';
+    meta.innerHTML = (m.data ? '<span>\ud83d\udcc5 ' + m.data + '</span>' : '')
+      + (m.orario ? '<span>\u23f0 ' + m.orario + '</span>' : '')
+      + (ci ? '<span class="' + ci.cls + '">\ud83c\udfbe ' + ci.label + '</span>' : '');
+    box.appendChild(meta);
+  }
+
+  if (hasResult) {
+    box.style.cursor = 'pointer';
+    box.addEventListener('click', () => openModal(m, { color: 'var(--accent)', label: 'TABELLONE GOLD' }));
+  }
+  return box;
+}
+
+function buildGoldBracket(parsed) {
+  const container = document.getElementById('gold-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!parsed.seeds.length && !parsed.blocks.length) {
+    container.innerHTML = '<div class="cal-empty">Tabellone Gold non ancora disponibile.</div>';
+    setText('gold-sub', 'In attesa dei dati');
+    return;
+  }
+
+  const legend = document.createElement('div');
+  legend.className = 'gold-legend';
+  legend.innerHTML =
+    '<span><span class="dot" style="background:#3fd97a"></span>Campo Verde</span>' +
+    '<span><span class="dot" style="background:#e8402d"></span>Campo Rosso</span>' +
+    '<span><span class="dot" style="background:#4fb8e8"></span>Campo Blu</span>';
+  container.appendChild(legend);
+
+  const rounds = buildGoldRounds(parsed);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'gold-wrap';
+  const bracket = document.createElement('div');
+  bracket.className = 'bracket';
+  wrap.appendChild(bracket);
+
+  rounds.forEach((round, ri) => {
+    const col = document.createElement('div');
+    col.className = 'bracket-round';
+    const title = document.createElement('div');
+    title.className = 'bracket-round-title';
+    title.textContent = round.name;
+    col.appendChild(title);
+    round.matches.forEach((m) => {
+      const slot = document.createElement('div');
+      slot.className = 'bracket-slot' + (ri > 0 ? ' bracket-pair' : '');
+      slot.appendChild(renderGoldMatch(m));
+      col.appendChild(slot);
+    });
+    bracket.appendChild(col);
+  });
+
+  // colonna campione
+  const finalRound = rounds[rounds.length - 1];
+  const finalMatch = finalRound && finalRound.matches[0];
+  const champ = finalMatch ? goldWinner(finalMatch) : null;
+  const champCol = document.createElement('div');
+  champCol.className = 'bracket-round';
+  const champSlot = document.createElement('div');
+  champSlot.className = 'bracket-slot bracket-champion';
+  champSlot.innerHTML = '<div class="bracket-trophy">\ud83c\udfc6</div>'
+    + '<div class="bracket-champion-name">' + (champ || 'Da definire') + '</div>'
+    + '<div class="bracket-champion-label">Campione Gold</div>';
+  champCol.appendChild(champSlot);
+  bracket.appendChild(champCol);
+
+  container.appendChild(wrap);
+  setText('gold-sub', (parsed.seeds.length || 16) + ' coppie qualificate \u00b7 eliminazione diretta');
+}
+
+async function loadGold() {
+  try {
+    const rows = await fetchSheet(CONFIG.goldSheet);
+    const parsed = parseGold(rows);
+    buildGoldBracket(parsed);
+  } catch(err) {
+    const gc = document.getElementById('gold-container');
+    if (gc) gc.innerHTML = '<div class="loading-msg" style="color:#e8402d;">Errore caricamento tabellone.<br><span style="font-size:11px;">' + err.message + '</span></div>';
+    console.error(err);
+  }
+}
+
 function setActive(el) {
   document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
   el.classList.add('active');
@@ -939,7 +1232,8 @@ document.querySelectorAll('.fade-in').forEach(el =>
 initFromConfig();
 loadGironi();
 loadSquadre();
-setInterval(function() { loadGironi(); loadSquadre(); }, 5 * 60 * 1000);
+loadGold();
+setInterval(function() { loadGironi(); loadSquadre(); loadGold(); }, 5 * 60 * 1000);
 </script>
 </body>
 </html>
