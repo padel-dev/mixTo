@@ -146,7 +146,12 @@
   @media(max-width: 900px) { .gironi-grid { grid-template-columns: 1fr 1fr; } }
   @media(max-width: 560px) { .gironi-grid { grid-template-columns: 1fr; } }
   .girone-card { background: var(--card); border-radius: 4px; overflow: hidden; }
-  .girone-head { padding: 14px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 2px solid; }
+  .girone-head { padding: 14px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 2px solid; cursor: pointer; user-select: none; }
+  .girone-collapse-arrow { margin-left: auto; flex-shrink: 0; color: var(--muted); font-size: 11px; transition: transform 0.25s; }
+  .girone-card.collapsed .girone-collapse-arrow { transform: rotate(-90deg); }
+  .girone-card .cl-table-wrap { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.3s ease; }
+  .girone-card.collapsed .cl-table-wrap { grid-template-rows: 0fr; }
+  .girone-card .cl-table-wrap > div { overflow: hidden; }
   .girone-badge { width: 34px; height: 34px; flex-shrink: 0; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 1.3rem; color: #0a0a08; letter-spacing: 0; }
   .girone-label { font-family: var(--font-display); font-size: 1.3rem; letter-spacing: 3px; }
   .girone-sub { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
@@ -305,8 +310,8 @@
 <nav>
   <div class="nav-links">
     <a href="#calendario" onclick="setActive(this)">Calendario</a>
-    <a href="#classifiche" onclick="setActive(this)">Classifiche</a>
     <a href="#tabellone-gold" onclick="setActive(this)">Tabellone Gold</a>
+    <a href="#classifiche" onclick="setActive(this)">Classifiche</a>
     <a href="#squadre" onclick="setActive(this)">Coppie</a>
     <a href="#storia" onclick="setActive(this)">Storico</a>
     <a href="#dove" onclick="setActive(this)">Dove giochiamo</a>
@@ -331,19 +336,6 @@
   </div>
 </div>
 
-<div class="section" id="classifiche">
-  <div class="section-inner">
-    <div class="sec-head fade-in">
-      <div class="sec-label" id="cl-label"></div>
-      <div class="sec-title">CLASSIFICHE</div>
-      <div class="sec-sub" id="cl-sub">Caricamento...</div>
-    </div>
-    <div id="classifiche-container">
-      <div class="loading-msg">Caricamento<span class="loading-dot">.</span><span class="loading-dot">.</span><span class="loading-dot">.</span></div>
-    </div>
-  </div>
-</div>
-
 <div class="section" id="tabellone-gold">
   <div class="section-inner">
     <div class="sec-head fade-in">
@@ -352,6 +344,19 @@
       <div class="sec-sub" id="gold-sub">Caricamento tabellone...</div>
     </div>
     <div id="gold-container">
+      <div class="loading-msg">Caricamento<span class="loading-dot">.</span><span class="loading-dot">.</span><span class="loading-dot">.</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="section" id="classifiche">
+  <div class="section-inner">
+    <div class="sec-head fade-in">
+      <div class="sec-label" id="cl-label"></div>
+      <div class="sec-title">CLASSIFICHE</div>
+      <div class="sec-sub" id="cl-sub">Caricamento...</div>
+    </div>
+    <div id="classifiche-container">
       <div class="loading-msg">Caricamento<span class="loading-dot">.</span><span class="loading-dot">.</span><span class="loading-dot">.</span></div>
     </div>
   </div>
@@ -414,6 +419,8 @@ const GironeHeaderRegex = /^GIRONE\s+([A-Z0-9]+)/i;
 
 let coppieData      = [];   // array di gironi: { cfg, coppie:[{n1,n2,nomeCompleto}] }
 let gironiData      = {};   // { 'A': {partite:[...], squadre:[...]} , ... }
+let goldPartite      = [];  // partite reali del tabellone Gold, già taggate con cfg GOLD_CFG
+const GOLD_CFG = { name: 'GOLD', label: 'TABELLONE GOLD', color: '#ffe066', cssVars: { '--g-dim': '#2b2306', '--g-mid': '#4d3f0d' } };
 let calGiorniMap    = new Map();
 let calSortedKeys   = [];
 let calFiltroGirone = 'tutti';
@@ -464,6 +471,13 @@ function initFromConfig() {
         btn.dataset.color = g.color; btn.dataset.colorDim = g.cssVars['--g-dim']; btn.dataset.colorMid = g.cssVars['--g-mid'];
         fg.appendChild(btn);
       });
+      const goldBtn = document.createElement('button');
+      goldBtn.className = 'fpill';
+      goldBtn.id = 'f-gold';
+      goldBtn.onclick = () => setFiltroGirone('GOLD');
+      goldBtn.innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:' + GOLD_CFG.color + ';display:inline-block;flex-shrink:0"></span> Gold';
+      goldBtn.dataset.color = GOLD_CFG.color; goldBtn.dataset.colorDim = GOLD_CFG.cssVars['--g-dim']; goldBtn.dataset.colorMid = GOLD_CFG.cssVars['--g-mid'];
+      fg.appendChild(goldBtn);
     }
   }
   document.getElementById('storia-grid').innerHTML = CONFIG.storia.map(s => '<div class="storia-card ' + (s.current ? 'current' : '') + '"><div class="storia-ed" ' + (s.current ? 'style="color:var(--accent)"' : '') + '>' + s.edition + '</div><div class="storia-trophy">' + (s.current ? '\u26a1' : '\ud83e\udd47') + '</div><div class="storia-winner">' + s.winner + '</div></div>').join('');
@@ -669,6 +683,7 @@ function buildGiorniMap() {
     const data = gironiData[letter];
     data.partite.forEach(p => allPartite.push(Object.assign({}, p, { cfg: data.cfg })));
   });
+  goldPartite.forEach(p => allPartite.push(p));
   calGiorniMap = new Map();
   allPartite.forEach(p => {
     const info = parseData(p.data);
@@ -831,8 +846,9 @@ function buildCalendario() {
   }
 
   applyFilters();
-  const tot = Object.values(gironiData).reduce((s,d) => s + d.partite.length, 0);
-  setText('cal-sub', tot + ' partite · ' + Object.keys(gironiData).length + ' gironi');
+  const tot = Object.values(gironiData).reduce((s,d) => s + d.partite.length, 0) + goldPartite.length;
+  const gironiCount = Object.keys(gironiData).length;
+  setText('cal-sub', tot + ' partite · ' + gironiCount + ' gironi' + (goldPartite.length ? ' + tabellone Gold' : ''));
 }
 
 function togglePassati() {
@@ -916,7 +932,7 @@ function buildClassifiche() {
     const card = document.createElement('div');
     card.className = 'girone-card';
     card.style.cssText = 'border:1px solid ' + cfg.cssVars['--g-mid'];
-    card.innerHTML = '<div class="girone-head" style="background:' + cfg.cssVars['--g-dim'] + ';border-bottom-color:' + cfg.color + '"><div class="girone-badge" style="background:' + cfg.color + '">' + cfg.name + '</div><div><div class="girone-label" style="color:' + cfg.color + '">' + cfg.label + '</div><div class="girone-sub">' + squadre.length + ' coppie</div></div></div><table class="cl-table"><thead><tr><th style="width:24px">#</th><th>Coppia</th><th class="c">G</th><th class="c">V</th><th class="c">P</th><th class="c">Pt</th></tr></thead><tbody>' + tbody + '</tbody></table>';
+    card.innerHTML = '<div class="girone-head" onclick="this.closest(\'.girone-card\').classList.toggle(\'collapsed\')" style="background:' + cfg.cssVars['--g-dim'] + ';border-bottom-color:' + cfg.color + '"><div class="girone-badge" style="background:' + cfg.color + '">' + cfg.name + '</div><div><div class="girone-label" style="color:' + cfg.color + '">' + cfg.label + '</div><div class="girone-sub">' + squadre.length + ' coppie</div></div><span class="girone-collapse-arrow">\u25bc</span></div><div class="cl-table-wrap"><div><table class="cl-table"><thead><tr><th style="width:24px">#</th><th>Coppia</th><th class="c">G</th><th class="c">V</th><th class="c">P</th><th class="c">Pt</th></tr></thead><tbody>' + tbody + '</tbody></table></div></div>';
     grid.appendChild(card);
   });
   const totCoppie = Object.values(gironiData).reduce((s,d) => s + d.squadre.length, 0);
@@ -1142,7 +1158,7 @@ function renderGoldMatch(m) {
 
   if (hasResult) {
     box.style.cursor = 'pointer';
-    box.addEventListener('click', () => openModal(m, { color: 'var(--accent)', label: 'TABELLONE GOLD' }));
+    box.addEventListener('click', () => openModal(m, GOLD_CFG));
   }
   return box;
 }
@@ -1212,7 +1228,9 @@ async function loadGold() {
   try {
     const rows = await fetchSheet(CONFIG.goldSheet);
     const parsed = parseGold(rows);
+    goldPartite = [].concat(...parsed.blocks).map(m => Object.assign({}, m, { cfg: GOLD_CFG }));
     buildGoldBracket(parsed);
+    buildCalendario();
   } catch(err) {
     const gc = document.getElementById('gold-container');
     if (gc) gc.innerHTML = '<div class="loading-msg" style="color:#e8402d;">Errore caricamento tabellone.<br><span style="font-size:11px;">' + err.message + '</span></div>';
