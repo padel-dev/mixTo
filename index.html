@@ -311,6 +311,7 @@
   <div class="nav-links">
     <a href="#calendario" onclick="setActive(this)">Calendario</a>
     <a href="#tabellone-gold" onclick="setActive(this)">Tabellone Gold</a>
+    <a href="#tabellone-silver" onclick="setActive(this)">Tabellone Silver</a>
     <a href="#classifiche" onclick="setActive(this)">Classifiche</a>
     <a href="#squadre" onclick="setActive(this)">Coppie</a>
     <a href="#storia" onclick="setActive(this)">Storico</a>
@@ -344,6 +345,19 @@
       <div class="sec-sub" id="gold-sub">Caricamento tabellone...</div>
     </div>
     <div id="gold-container">
+      <div class="loading-msg">Caricamento<span class="loading-dot">.</span><span class="loading-dot">.</span><span class="loading-dot">.</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="section" id="tabellone-silver">
+  <div class="section-inner">
+    <div class="sec-head fade-in">
+      <div class="sec-label" id="silver-label">Fase finale</div>
+      <div class="sec-title">TABELLONE SILVER</div>
+      <div class="sec-sub" id="silver-sub">Caricamento tabellone...</div>
+    </div>
+    <div id="silver-container">
       <div class="loading-msg">Caricamento<span class="loading-dot">.</span><span class="loading-dot">.</span><span class="loading-dot">.</span></div>
     </div>
   </div>
@@ -420,7 +434,9 @@ const GironeHeaderRegex = /^GIRONE\s+([A-Z0-9]+)/i;
 let coppieData      = [];   // array di gironi: { cfg, coppie:[{n1,n2,nomeCompleto}] }
 let gironiData      = {};   // { 'A': {partite:[...], squadre:[...]} , ... }
 let goldPartite      = [];  // partite reali del tabellone Gold, già taggate con cfg GOLD_CFG
-const GOLD_CFG = { name: 'GOLD', label: 'TABELLONE GOLD', color: '#ffe066', cssVars: { '--g-dim': '#2b2306', '--g-mid': '#4d3f0d' } };
+let silverPartite    = [];  // partite reali del tabellone Silver, già taggate con cfg SILVER_CFG
+const GOLD_CFG   = { name: 'GOLD',   label: 'TABELLONE GOLD',   color: '#ffe066', cssVars: { '--g-dim': '#2b2306', '--g-mid': '#4d3f0d' } };
+const SILVER_CFG = { name: 'SILVER', label: 'TABELLONE SILVER', color: '#c7cad1', cssVars: { '--g-dim': '#242527', '--g-mid': '#43454a' } };
 let calGiorniMap    = new Map();
 let calSortedKeys   = [];
 let calFiltroGirone = 'tutti';
@@ -478,6 +494,15 @@ function initFromConfig() {
       goldBtn.innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:' + GOLD_CFG.color + ';display:inline-block;flex-shrink:0"></span> Gold';
       goldBtn.dataset.color = GOLD_CFG.color; goldBtn.dataset.colorDim = GOLD_CFG.cssVars['--g-dim']; goldBtn.dataset.colorMid = GOLD_CFG.cssVars['--g-mid'];
       fg.appendChild(goldBtn);
+      if (CONFIG.silverSheet) {
+        const silverBtn = document.createElement('button');
+        silverBtn.className = 'fpill';
+        silverBtn.id = 'f-silver';
+        silverBtn.onclick = () => setFiltroGirone('SILVER');
+        silverBtn.innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:' + SILVER_CFG.color + ';display:inline-block;flex-shrink:0"></span> Silver';
+        silverBtn.dataset.color = SILVER_CFG.color; silverBtn.dataset.colorDim = SILVER_CFG.cssVars['--g-dim']; silverBtn.dataset.colorMid = SILVER_CFG.cssVars['--g-mid'];
+        fg.appendChild(silverBtn);
+      }
     }
   }
   document.getElementById('storia-grid').innerHTML = CONFIG.storia.map(s => '<div class="storia-card ' + (s.current ? 'current' : '') + '"><div class="storia-ed" ' + (s.current ? 'style="color:var(--accent)"' : '') + '>' + s.edition + '</div><div class="storia-trophy">' + (s.current ? '\u26a1' : '\ud83e\udd47') + '</div><div class="storia-winner">' + s.winner + '</div></div>').join('');
@@ -684,6 +709,7 @@ function buildGiorniMap() {
     data.partite.forEach(p => allPartite.push(Object.assign({}, p, { cfg: data.cfg })));
   });
   goldPartite.forEach(p => allPartite.push(p));
+  silverPartite.forEach(p => allPartite.push(p));
   calGiorniMap = new Map();
   allPartite.forEach(p => {
     const info = parseData(p.data);
@@ -846,9 +872,10 @@ function buildCalendario() {
   }
 
   applyFilters();
-  const tot = Object.values(gironiData).reduce((s,d) => s + d.partite.length, 0) + goldPartite.length;
+  const tot = Object.values(gironiData).reduce((s,d) => s + d.partite.length, 0) + goldPartite.length + silverPartite.length;
   const gironiCount = Object.keys(gironiData).length;
-  setText('cal-sub', tot + ' partite · ' + gironiCount + ' gironi' + (goldPartite.length ? ' + tabellone Gold' : ''));
+  const extraTab = [goldPartite.length ? 'Gold' : null, silverPartite.length ? 'Silver' : null].filter(Boolean);
+  setText('cal-sub', tot + ' partite · ' + gironiCount + ' gironi' + (extraTab.length ? ' + tabellone ' + extraTab.join('/') : ''));
 }
 
 function togglePassati() {
@@ -1031,26 +1058,46 @@ function parseGold(rows) {
     return (c.formattedValue || '').trim();
   };
 
-  const seeds = [];      // { n, nome }
+  const seeds = [];      // { n, nome }  (nome può essere '' se la coppia non è ancora nota)
   const matchRows = [];  // sequenza di match / null (riga vuota = separatore di turno)
 
   rows.forEach(r => {
     const cells = r.values || [];
-    const c0 = cellRaw(cells, 0);
-    const c1 = strVal(cells, 1);
-    const c2 = strVal(cells, 2);
+    const c0raw = cellRaw(cells, 0);
+    const c0    = (typeof c0raw === 'number' ? String(c0raw) : (c0raw || '')).toString().trim();
+    const c1    = strVal(cells, 1);
+    const c2    = strVal(cells, 2);
     const isBlank = !c0 && !c1 && !c2;
     if (isBlank) { matchRows.push(null); return; }
-    if (c1 && !c2) {
-      // riga seed: numero + nome coppia
-      const n = typeof c0 === 'number' ? c0 : parseInt(c0);
-      seeds.push({ n: isNaN(n) ? seeds.length + 1 : n, nome: c1 });
+
+    // riga di un match del tabellone: etichetta "N--M" (le coppie possono non essere ancora note)
+    const labelMatch = c0.match(/^(\d+)\s*-{1,2}\s*(\d+)$/);
+    if (labelMatch) {
+      matchRows.push({
+        label: c0,
+        seedA: parseInt(labelMatch[1]), seedB: parseInt(labelMatch[2]),
+        sq1raw: c1, sq2raw: c2,
+        data:      dateVal(cells, 3),
+        orario:    strVal(cells, 4),
+        campo:     strVal(cells, 5).toUpperCase(),
+        risultato: strVal(cells, 6),
+        p1:        strVal(cells, 7),
+        p2:        strVal(cells, 8),
+      });
       return;
     }
+
+    // riga seed: solo un numero in colonna A (nome coppia opzionale, può arrivare più avanti)
+    if (/^\d+$/.test(c0) && !c2) {
+      seeds.push({ n: parseInt(c0), nome: c1 || '' });
+      return;
+    }
+
+    // fallback: due nomi coppia senza etichetta numerica riconoscibile
     if (c1 && c2) {
       matchRows.push({
-        label:     typeof c0 === 'string' ? c0.trim() : String(c0 || ''),
-        sq1: c1, sq2: c2,
+        label: c0,
+        sq1raw: c1, sq2raw: c2,
         data:      dateVal(cells, 3),
         orario:    strVal(cells, 4),
         campo:     strVal(cells, 5).toUpperCase(),
@@ -1061,16 +1108,37 @@ function parseGold(rows) {
     }
   });
 
+  seeds.sort((a, b) => a.n - b.n);
+
+  // risolve i nomi delle coppie di un match: usa il nome scritto sulla riga, altrimenti
+  // cerca il nome del seed corrispondente; se ancora ignoto usa un placeholder "Seed N"
+  const resolveTeam = (seedNum, raw) => {
+    if (raw) return { name: raw, known: true };
+    if (seedNum != null) {
+      const s = seeds.find(x => x.n === seedNum);
+      if (s && s.nome) return { name: s.nome, known: true };
+      return { name: 'Seed ' + seedNum, known: false };
+    }
+    return { name: 'Da definire', known: false };
+  };
+
+  const resolvedMatchRows = matchRows.map(m => {
+    if (m === null) return null;
+    const a = resolveTeam(m.seedA, m.sq1raw);
+    const b = resolveTeam(m.seedB, m.sq2raw);
+    return Object.assign({}, m, { sq1: a.name, sq2: b.name, isPlaceholder: !(a.known && b.known) });
+  });
+
   // raggruppa in blocchi (un blocco = un turno) separati da righe vuote
   const blocks = [];
   let current = [];
-  matchRows.forEach(m => {
+  resolvedMatchRows.forEach(m => {
     if (m === null) { if (current.length) { blocks.push(current); current = []; } }
     else current.push(m);
   });
   if (current.length) blocks.push(current);
 
-  return { seeds: seeds.sort((a, b) => a.n - b.n), blocks };
+  return { seeds, blocks };
 }
 
 function goldWinner(m) {
@@ -1131,7 +1199,7 @@ function campoInfo(campo) {
   return { cls: 'bm-campo-g', label: 'Campo Verde' };
 }
 
-function renderGoldMatch(m) {
+function renderBracketMatch(m, cfg) {
   const hasResult = m.p1 !== '' && m.p2 !== '' && m.p1 != null && m.p2 != null;
   const w = hasResult ? goldWinner(m) : null;
   const box = document.createElement('div');
@@ -1158,19 +1226,19 @@ function renderGoldMatch(m) {
 
   if (hasResult) {
     box.style.cursor = 'pointer';
-    box.addEventListener('click', () => openModal(m, GOLD_CFG));
+    box.addEventListener('click', () => openModal(m, cfg));
   }
   return box;
 }
 
-function buildGoldBracket(parsed) {
-  const container = document.getElementById('gold-container');
+function buildBracketSection(parsed, containerId, subId, cfg, championLabel) {
+  const container = document.getElementById(containerId);
   if (!container) return;
   container.innerHTML = '';
 
   if (!parsed.seeds.length && !parsed.blocks.length) {
-    container.innerHTML = '<div class="cal-empty">Tabellone Gold non ancora disponibile.</div>';
-    setText('gold-sub', 'In attesa dei dati');
+    container.innerHTML = '<div class="cal-empty">Tabellone non ancora disponibile.</div>';
+    setText(subId, 'In attesa dei dati');
     return;
   }
 
@@ -1200,7 +1268,7 @@ function buildGoldBracket(parsed) {
     round.matches.forEach((m) => {
       const slot = document.createElement('div');
       slot.className = 'bracket-slot' + (ri > 0 ? ' bracket-pair' : '');
-      slot.appendChild(renderGoldMatch(m));
+      slot.appendChild(renderBracketMatch(m, cfg));
       col.appendChild(slot);
     });
     bracket.appendChild(col);
@@ -1216,27 +1284,38 @@ function buildGoldBracket(parsed) {
   champSlot.className = 'bracket-slot bracket-champion';
   champSlot.innerHTML = '<div class="bracket-trophy">\ud83c\udfc6</div>'
     + '<div class="bracket-champion-name">' + (champ || 'Da definire') + '</div>'
-    + '<div class="bracket-champion-label">Campione Gold</div>';
+    + '<div class="bracket-champion-label">' + championLabel + '</div>';
   champCol.appendChild(champSlot);
   bracket.appendChild(champCol);
 
   container.appendChild(wrap);
-  setText('gold-sub', (parsed.seeds.length || 16) + ' coppie qualificate \u00b7 eliminazione diretta');
+  setText(subId, (parsed.seeds.length || rounds[0].matches.length * 2 || 0) + ' coppie qualificate \u00b7 eliminazione diretta');
 }
 
-async function loadGold() {
+async function loadBracket(sheetName, containerId, subId, cfg, championLabel, storeFn) {
   try {
-    const rows = await fetchSheet(CONFIG.goldSheet);
+    const rows = await fetchSheet(sheetName);
     const parsed = parseGold(rows);
-    goldPartite = [].concat(...parsed.blocks).map(m => Object.assign({}, m, { cfg: GOLD_CFG }));
-    buildGoldBracket(parsed);
+    const partite = [].concat(...parsed.blocks).filter(m => !m.isPlaceholder).map(m => Object.assign({}, m, { cfg }));
+    storeFn(partite);
+    buildBracketSection(parsed, containerId, subId, cfg, championLabel);
     buildCalendario();
   } catch(err) {
-    const gc = document.getElementById('gold-container');
-    if (gc) gc.innerHTML = '<div class="loading-msg" style="color:#e8402d;">Errore caricamento tabellone.<br><span style="font-size:11px;">' + err.message + '</span></div>';
+    const c = document.getElementById(containerId);
+    if (c) c.innerHTML = '<div class="loading-msg" style="color:#e8402d;">Errore caricamento tabellone.<br><span style="font-size:11px;">' + err.message + '</span></div>';
     console.error(err);
   }
 }
+
+async function loadGold() {
+  await loadBracket(CONFIG.goldSheet, 'gold-container', 'gold-sub', GOLD_CFG, 'Campione Gold', p => { goldPartite = p; });
+}
+
+async function loadSilver() {
+  if (!CONFIG.silverSheet) return;
+  await loadBracket(CONFIG.silverSheet, 'silver-container', 'silver-sub', SILVER_CFG, 'Campione Silver', p => { silverPartite = p; });
+}
+
 
 function setActive(el) {
   document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
@@ -1251,7 +1330,8 @@ initFromConfig();
 loadGironi();
 loadSquadre();
 loadGold();
-setInterval(function() { loadGironi(); loadSquadre(); loadGold(); }, 5 * 60 * 1000);
+loadSilver();
+setInterval(function() { loadGironi(); loadSquadre(); loadGold(); loadSilver(); }, 5 * 60 * 1000);
 </script>
 </body>
 </html>
