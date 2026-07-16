@@ -1060,7 +1060,8 @@ function parseGold(rows) {
   };
 
   const seeds = [];      // { n, nome }  (nome può essere '' se la coppia non è ancora nota)
-  const matchRows = [];  // sequenza di match / null (riga vuota = separatore di turno)
+  const matchRows = [];  // sequenza di SOLE partite reali, nell'ordine del foglio (le righe vuote vengono ignorate qui:
+                         // servono solo a rendere leggibile il foglio, non a determinare a quale turno appartiene una partita)
 
   rows.forEach(r => {
     const cells = r.values || [];
@@ -1069,7 +1070,7 @@ function parseGold(rows) {
     const c1    = strVal(cells, 1);
     const c2    = strVal(cells, 2);
     const isBlank = !c0 && !c1 && !c2;
-    if (isBlank) { matchRows.push(null); return; }
+    if (isBlank) return; // riga vuota: puramente estetica, non separa più i turni
 
     // riga di un match del tabellone: etichetta "N--M" (le coppie possono non essere ancora note)
     const labelMatch = c0.match(/^(\d+)\s*-{1,2}\s*(\d+)$/);
@@ -1124,20 +1125,29 @@ function parseGold(rows) {
   };
 
   const resolvedMatchRows = matchRows.map(m => {
-    if (m === null) return null;
     const a = resolveTeam(m.seedA, m.sq1raw);
     const b = resolveTeam(m.seedB, m.sq2raw);
     return Object.assign({}, m, { sq1: a.name, sq2: b.name, isPlaceholder: !(a.known && b.known) });
   });
 
-  // raggruppa in blocchi (un blocco = un turno) separati da righe vuote
+  // raggruppa in blocchi (un blocco = un turno) in base al numero di partite atteso per ogni
+  // turno (nSeeds/2 ottavi, nSeeds/4 quarti, ecc.), NON in base alle righe vuote nel foglio:
+  // così un'unica riga vuota o mal posizionata nel mezzo di un turno non sfasa più tutti i turni successivi.
+  const nSeedsForChunking = seeds.length || 16;
+  const totalRoundsForChunking = Math.max(1, Math.round(Math.log2(nSeedsForChunking)));
   const blocks = [];
-  let current = [];
-  resolvedMatchRows.forEach(m => {
-    if (m === null) { if (current.length) { blocks.push(current); current = []; } }
-    else current.push(m);
-  });
-  if (current.length) blocks.push(current);
+  let idx = 0;
+  for (let i = 0; i < totalRoundsForChunking && idx < resolvedMatchRows.length; i++) {
+    const expected = Math.round(nSeedsForChunking / Math.pow(2, i + 1));
+    const chunk = resolvedMatchRows.slice(idx, idx + expected);
+    if (!chunk.length) break;
+    blocks.push(chunk);
+    idx += expected;
+  }
+  // eventuali righe residue (oltre il numero di turni attesi) finiscono comunque nell'ultimo blocco
+  if (idx < resolvedMatchRows.length && blocks.length) {
+    blocks[blocks.length - 1] = blocks[blocks.length - 1].concat(resolvedMatchRows.slice(idx));
+  }
 
   return { seeds, blocks };
 }
