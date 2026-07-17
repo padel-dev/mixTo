@@ -221,6 +221,10 @@
   .bracket-team-name { flex: 1; color: #fff; line-height: 1.3; }
   .bracket-team.placeholder-name .bracket-team-name { color: var(--muted); font-style: italic; }
   .bracket-team-score { font-family: var(--font-display); font-size: 1rem; color: var(--accent-light); flex-shrink: 0; }
+  .bracket-sets { display: flex; gap: 8px; flex-shrink: 0; }
+  .bracket-set { font-family: var(--font-display); font-size: 1rem; color: var(--accent-light); min-width: 16px; text-align: center; }
+  .bracket-team.win .bracket-set { color: var(--accent-light); }
+  .bracket-team:not(.win) .bracket-set { color: var(--muted); }
   .bracket-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 5px 10px; font-size: 9.5px; letter-spacing: 1px; color: var(--muted); background: var(--bg2); border-top: 1px solid var(--border); }
   .bracket-meta .bm-campo-r { color: #f0705a; }
   .bracket-meta .bm-campo-b { color: #7fcdf0; }
@@ -662,7 +666,7 @@ function parseMix2(rows) {
 function openModal(p, cfg) {
   const hasResult = p.p1 !== '' && p.p2 !== '';
   document.getElementById('modal-girone-dot').style.background = cfg.color;
-  document.getElementById('modal-girone-label').textContent = cfg.label;
+  document.getElementById('modal-girone-label').textContent = cfg.label + (p.roundName ? ' \u00b7 ' + p.roundName : '');
   document.getElementById('modal-sq1').textContent = p.sq1;
   document.getElementById('modal-sq2').textContent = p.sq2;
   const scoreEl = document.getElementById('modal-final-score');
@@ -794,8 +798,9 @@ function renderDayBlock(key, tipo) {
       row.dataset.sq1 = p.sq1.toLowerCase();
       row.dataset.sq2 = p.sq2.toLowerCase();
       row.dataset.girone = cfg.name;
+      const gironeTagLabel = cfg.label + (p.roundName ? ' \u00b7 ' + p.roundName : '');
       row.innerHTML = '<div class="match-time">' + (p.orario || '--:--') + '</div>'
-        + '<div><div class="match-girone-tag" style="color:' + cfg.color + '">' + cfg.label + '</div>'
+        + '<div><div class="match-girone-tag" style="color:' + cfg.color + '">' + gironeTagLabel + '</div>'
         + '<div class="teams-row"><span class="team-name right">' + p.sq1 + '</span>'
         + (hasResult ? '<span class="score-chip">' + p.p1 + ' \u2013 ' + p.p2 + '</span>' : '<span class="vs-chip">vs</span>')
         + '<span class="team-name">' + p.sq2 + '</span></div></div>';
@@ -1034,6 +1039,17 @@ function filterSquadre(q) {
   });
 }
 
+// ── ROUND NAMES HELPER (nomi dei turni del tabellone a eliminazione) ────────
+const ROUND_NAMES_ALL = ['SEDICESIMI', 'OTTAVI DI FINALE', 'QUARTI DI FINALE', 'SEMIFINALE', 'FINALE'];
+function computeRoundNames(nSeeds) {
+  const totalRounds = Math.max(1, Math.round(Math.log2(nSeeds || 16)));
+  const names = [];
+  for (let i = 0; i < totalRounds; i++) {
+    names.push(ROUND_NAMES_ALL[ROUND_NAMES_ALL.length - totalRounds + i] || ('TURNO ' + (i + 1)));
+  }
+  return names;
+}
+
 // ── PARSER FOGLIO "Gold" (tabellone a eliminazione diretta, 16 coppie) ──────
 function parseGold(rows) {
   const cellRaw = (cells, i) => {
@@ -1166,14 +1182,19 @@ function goldPlaceholderLabel(m) {
   return 'Vincente turno prec.';
 }
 
+function parseSetTokens(risultato) {
+  if (!risultato) return [];
+  return risultato.trim().split(/\s+/).map(tok => {
+    const idx = tok.indexOf('-');
+    if (idx === -1) return { a: tok, b: '' };
+    return { a: tok.slice(0, idx), b: tok.slice(idx + 1) };
+  });
+}
+
 function buildGoldRounds(parsed) {
   const nSeeds = parsed.seeds.length || 16;
-  const totalRounds = Math.max(1, Math.round(Math.log2(nSeeds)));
-  const roundNamesAll = ['SEDICESIMI', 'OTTAVI DI FINALE', 'QUARTI DI FINALE', 'SEMIFINALE', 'FINALE'];
-  const names = [];
-  for (let i = 0; i < totalRounds; i++) {
-    names.push(roundNamesAll[roundNamesAll.length - totalRounds + i] || ('TURNO ' + (i + 1)));
-  }
+  const names = computeRoundNames(nSeeds);
+  const totalRounds = names.length;
 
   const rounds = [];
   for (let i = 0; i < totalRounds; i++) {
@@ -1211,22 +1232,23 @@ function campoInfo(campo) {
 }
 
 function renderBracketMatch(m, cfg) {
-  const hasResult = m.p1 !== '' && m.p2 !== '' && m.p1 != null && m.p2 != null;
+  const sets = parseSetTokens(m.risultato);
+  const hasResult = sets.length > 0;
   const w = hasResult ? goldWinner(m) : null;
   const box = document.createElement('div');
   box.className = 'bracket-match' + (m.isPlaceholder ? ' placeholder' : '');
 
-  const rowHtml = (name, score, isWinner) =>
+  const rowHtml = (name, setValues, isWinner) =>
     '<div class="bracket-team' + (isWinner ? ' win' : '') + (!name || /^Vinc\.|^Vincente|^Da definire/.test(name) ? ' placeholder-name' : '') + '">' +
       '<span class="bracket-team-name">' + (name || 'Da definire') + '</span>' +
-      (score !== null ? '<span class="bracket-team-score">' + score + '</span>' : '') +
+      (setValues.length ? '<div class="bracket-sets">' + setValues.map(v => '<span class="bracket-set">' + v + '</span>').join('') + '</div>' : '') +
     '</div>';
 
-  box.innerHTML = rowHtml(m.sq1, hasResult ? m.p1 : null, hasResult && w === m.sq1)
-                 + rowHtml(m.sq2, hasResult ? m.p2 : null, hasResult && w === m.sq2);
+  box.innerHTML = rowHtml(m.sq1, hasResult ? sets.map(s => s.a) : [], hasResult && w === m.sq1)
+                 + rowHtml(m.sq2, hasResult ? sets.map(s => s.b) : [], hasResult && w === m.sq2);
 
   // Una volta inserito il risultato, le info su data/orario/campo vengono nascoste:
-  // il box mostra solo squadre e punteggio.
+  // il box mostra solo squadre e set giocati.
   const ci = campoInfo(m.campo);
   if (!hasResult && (m.data || m.orario || ci)) {
     const meta = document.createElement('div');
@@ -1237,10 +1259,6 @@ function renderBracketMatch(m, cfg) {
     box.appendChild(meta);
   }
 
-  if (hasResult) {
-    box.style.cursor = 'pointer';
-    box.addEventListener('click', () => openModal(m, cfg));
-  }
   return box;
 }
 
@@ -1309,7 +1327,14 @@ async function loadBracket(sheetName, containerId, subId, cfg, championLabel, st
   try {
     const rows = await fetchSheet(sheetName);
     const parsed = parseGold(rows);
-    const partite = [].concat(...parsed.blocks).filter(m => !m.isPlaceholder).map(m => Object.assign({}, m, { cfg }));
+    const roundNames = computeRoundNames(parsed.seeds.length || 16);
+    const partite = [];
+    parsed.blocks.forEach((block, bi) => {
+      const roundName = roundNames[bi] || ('TURNO ' + (bi + 1));
+      block.forEach(m => {
+        if (!m.isPlaceholder) partite.push(Object.assign({}, m, { cfg, roundName }));
+      });
+    });
     storeFn(partite);
     buildBracketSection(parsed, containerId, subId, cfg, championLabel);
     buildCalendario();
